@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💰 Bozzx Finance + Wallet Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #6366f1; --primary-dark: #4f46e5;
+            --success: #10b981; --danger: #ef4444;
+            --warning: #f59e0b; --bg-dark: #0f0f23;
+            --bg-card: #1a1a2e; --text: #ffffff;
+            --text-muted: #94a3b8; --solana: #9945FF;
+        }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg-dark); color: var(--text); min-height: 100vh; }
+        .gradient-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(ellipse at top, #1a1a3e 0%, var(--bg-dark) 50%); z-index: -1; }
+        nav { position: fixed; top: 0; left: 0; right: 0; padding: 20px 0; background: rgba(15,15,35,0.95); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.1); z-index: 1000; }
+        nav .container { max-width: 1400px; margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; }
+        .nav-logo { font-size: 1.5rem; font-weight: 700; background: linear-gradient(135deg, var(--primary), #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .nav-links { display: flex; gap: 30px; list-style: none; }
+        .nav-links a { color: var(--text-muted); text-decoration: none; font-size: 0.95rem; transition: color 0.3s; }
+        .nav-links a:hover, .nav-links a.active { color: var(--primary); }
+        .container { max-width: 1400px; margin: 0 auto; padding: 100px 20px 40px; }
+        .header { margin-bottom: 40px; }
+        .header h1 { font-size: 2.5rem; font-weight: 800; margin-bottom: 10px; }
+        .header p { color: var(--text-muted); }
+        
+        /* Wallet Section */
+        .wallet-section { background: linear-gradient(135deg, #2d1b69 0%, #1a1a2e 100%); border-radius: 24px; padding: 40px; margin-bottom: 30px; border: 2px solid var(--solana); position: relative; overflow: hidden; }
+        .wallet-section::before { content: 'SOLANA'; position: absolute; top: 20px; right: 20px; font-size: 0.8rem; color: var(--solana); opacity: 0.5; letter-spacing: 3px; }
+        .wallet-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; flex-wrap: wrap; gap: 20px; }
+        .wallet-info h2 { font-size: 1.3rem; margin-bottom: 5px; }
+        .wallet-address { font-family: monospace; color: var(--solana); font-size: 0.95rem; background: rgba(153,69,255,0.1); padding: 8px 15px; border-radius: 8px; display: inline-block; }
+        .wallet-balances { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
+        .balance-card { background: rgba(255,255,255,0.05); border-radius: 16px; padding: 25px; text-align: center; }
+        .balance-card .icon { font-size: 2.5rem; margin-bottom: 10px; }
+        .balance-card h3 { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+        .balance-card .amount { font-size: 2rem; font-weight: 800; }
+        .balance-card .usd { font-size: 1rem; color: var(--text-muted); margin-top: 5px; }
+        .refresh-btn { background: var(--solana); color: white; border: none; padding: 12px 25px; border-radius: 12px; font-weight: 600; cursor: pointer; transition: all 0.3s; }
+        .refresh-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(153,69,255,0.3); }
+        
+        /* Cards Grid */
+        .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 40px; }
+        .card { background: var(--bg-card); border-radius: 20px; padding: 30px; border: 1px solid rgba(255,255,255,0.1); }
+        .card-icon { font-size: 2.5rem; margin-bottom: 15px; }
+        .card h3 { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+        .card .amount { font-size: 2.2rem; font-weight: 800; }
+        .card .positive { color: var(--success); }
+        .card .negative { color: var(--danger); }
+        
+        /* Charts */
+        .charts { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 40px; }
+        @media (max-width: 1000px) { .charts { grid-template-columns: 1fr; } }
+        .chart-card { background: var(--bg-card); border-radius: 20px; padding: 30px; border: 1px solid rgba(255,255,255,0.1); }
+        .chart-card h3 { font-size: 1.2rem; margin-bottom: 20px; }
+        
+        /* Transactions */
+        .transactions, .wallet-txs { background: var(--bg-card); border-radius: 20px; padding: 30px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px; }
+        .transactions h3, .wallet-txs h3 { font-size: 1.2rem; margin-bottom: 20px; }
+        .tx-list { max-height: 400px; overflow-y: auto; }
+        .tx-item { display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .tx-item:last-child { border-bottom: none; }
+        .tx-info { display: flex; align-items: center; gap: 15px; }
+        .tx-icon { width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; }
+        .tx-icon.swap { background: rgba(99,102,241,0.2); }
+        .tx-icon.receive { background: rgba(16,185,129,0.2); }
+        .tx-icon.send { background: rgba(239,68,68,0.2); }
+        .tx-details h4 { font-size: 1rem; margin-bottom: 3px; }
+        .tx-details p { font-size: 0.85rem; color: var(--text-muted); }
+        .tx-amount { font-weight: 700; font-size: 1.1rem; text-align: right; }
+        .tx-amount .positive { color: var(--success); }
+        .tx-amount .negative { color: var(--danger); }
+        .tx-amount .label { font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 3px; }
+        
+        /* Form */
+        .add-form { background: var(--bg-card); border-radius: 20px; padding: 30px; border: 1px solid rgba(255,255,255,0.1); margin-top: 20px; }
+        .add-form h3 { font-size: 1.2rem; margin-bottom: 20px; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 0.9rem; color: var(--text-muted); margin-bottom: 8px; }
+        .form-group input, .form-group select { width: 100%; padding: 12px 15px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: white; font-size: 1rem; }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--primary); }
+        .submit-btn { width: 100%; padding: 15px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); border: none; border-radius: 12px; color: white; font-size: 1rem; font-weight: 600; cursor: pointer; transition: transform 0.3s; }
+        .submit-btn:hover { transform: translateY(-2px); }
+        
+        /* Loading */
+        .loading { text-align: center; padding: 40px; color: var(--text-muted); }
+        .loading-spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--solana); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        footer { text-align: center; padding: 40px 0; color: var(--text-muted); font-size: 0.9rem; }
+        footer a { color: var(--primary); text-decoration: none; }
+        @media (max-width: 768px) { .nav-links { display: none; } .header h1 { font-size: 1.8rem; } }
+    </style>
+</head>
+<body>
+    <div class="gradient-bg"></div>
+    <nav>
+        <div class="container">
+            <div class="nav-logo">💰 BozzxFinance</div>
+            <ul class="nav-links">
+                <li><a href="#dashboard">Dashboard</a></li>
+                <li><a href="#wallet">Wallet</a></li>
+                <li><a href="#transactions">Transactions</a></li>
+                <li><a href="#add">Add</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="header" id="dashboard">
+            <h1>💰 Personal Finance + Crypto Dashboard</h1>
+            <p>Track your finances and wallet in one place</p>
+        </div>
+
+        <!-- Wallet Section -->
+        <div class="wallet-section" id="wallet">
+            <div class="wallet-header">
+                <div class="wallet-info">
+                    <h2>🔗 Connected Wallet</h2>
+                    <span class="wallet-address" id="walletAddress">HxMzn2qmZoYLKN5u9EEEGE7CPzmxnu1JkAS9z1gGQMKg</span>
+                </div>
+                <button class="refresh-btn" onclick="fetchWalletData()">🔄 Refresh</button>
+            </div>
+            <div class="wallet-balances">
+                <div class="balance-card">
+                    <div class="icon">💎</div>
+                    <h3>SOL Balance</h3>
+                    <div class="amount" id="solBalance">Loading...</div>
+                    <div class="usd" id="solUsd">$0.00</div>
+                </div>
+                <div class="balance-card">
+                    <div class="icon">💵</div>
+                    <h3>Total USD Value</h3>
+                    <div class="amount" id="totalUsd" style="color: var(--success)">Loading...</div>
+                    <div class="usd">From wallet + local</div>
+                </div>
+                <div class="balance-card">
+                    <div class="icon">📊</div>
+                    <h3>Tokens Held</h3>
+                    <div class="amount" id="tokenCount">-</div>
+                    <div class="usd">Top tokens</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="cards">
+            <div class="card">
+                <div class="card-icon">💰</div>
+                <h3>Total Balance</h3>
+                <div class="amount positive" id="totalBalance">$0.00</div>
+            </div>
+            <div class="card">
+                <div class="card-icon">📈</div>
+                <h3>Total Income</h3>
+                <div class="amount positive" id="totalIncome">$0.00</div>
+            </div>
+            <div class="card">
+                <div class="card-icon">📉</div>
+                <h3>Total Expenses</h3>
+                <div class="amount negative" id="totalExpenses">$0.00</div>
+            </div>
+            <div class="card">
+                <div class="card-icon">🎯</div>
+                <h3>Savings Rate</h3>
+                <div class="amount" id="savingsRate">0%</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts">
+            <div class="chart-card">
+                <h3>📊 Income vs Expenses (Last 7 Days)</h3>
+                <canvas id="weeklyChart" height="200"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3>📈 Category Breakdown</h3>
+                <canvas id="categoryChart" height="200"></canvas>
+            </div>
+        </div>
+
+        <!-- Wallet Transactions -->
+        <div class="wallet-txs" id="walletTransactions">
+            <h3>🔗 On-Chain Wallet Transactions</h3>
+            <div class="tx-list" id="walletTxList">
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Loading wallet transactions...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Local Transactions -->
+        <div class="transactions" id="transactions">
+            <h3>📋 Local Finance Transactions</h3>
+            <div class="tx-list" id="transactionList">
+                <div class="tx-item">
+                    <div class="tx-info">
+                        <div class="tx-icon receive">💰</div>
+                        <div class="tx-details">
+                            <h4>No transactions yet</h4>
+                            <p>Add your first transaction below</p>
+                        </div>
+                    </div>
+                    <div class="tx-amount positive">$0.00</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Form -->
+        <div class="add-form" id="add">
+            <h3>➕ Add Transaction</h3>
+            <form id="transactionForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Type</label>
+                        <select id="type" required>
+                            <option value="income">💰 Income</option>
+                            <option value="expense">💸 Expense</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Category</label>
+                        <select id="category" required>
+                            <option value="salary">💼 Salary</option>
+                            <option value="freelance">💻 Freelance</option>
+                            <option value="investment">📈 Investment</option>
+                            <option value="crypto">🪙 Crypto</option>
+                            <option value="food">🍔 Food</option>
+                            <option value="transport">🚗 Transport</option>
+                            <option value="shopping">🛍️ Shopping</option>
+                            <option value="bills">📄 Bills</option>
+                            <option value="entertainment">🎮 Entertainment</option>
+                            <option value="other                            <option value="other">📦 Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Amount ($)</label>
+                        <input type="number" id="amount" step="0.01" min="0.01" required placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <input type="text" id="description" required placeholder="What was this for?">
+                    </div>
+                </div>
+                <button type="submit" class="submit-btn">Add Transaction</button>
+            </form>
+        </div>
+
+        <footer>
+            <p>💰 BozzxFinance | Powered by <a href="https://t.me/bozzx" target="_blank">BozzxBot</a> 🤖</p>
+        </footer>
+    </div>
+
+    <script>
+        // Wallet Address
+        const WALLET_ADDRESS = 'HxMzn2qmZoYLKN5u9EEEGE7CPzmxnu1JkAS9z1gGQMKg';
+        const SOLANA_RPC = 'https://mainnet.helius-rpc.com/?api-key=4fb76888-4811-49d2-b3c3-cd34983ead18';
+        const SOL_PRICE = 83.67; // Fallback price
+
+        // Local Finance Data
+        let financeData = JSON.parse(localStorage.getItem('bozzxFinance')) || {
+            transactions: [],
+            goals: [
+                { name: 'Emergency Fund', target: 1000, current: 0 },
+                { name: 'Vacation', target: 500, current: 0 },
+                { name: 'New Laptop', target: 1500, current: 0 }
+            ]
+        };
+
+        let weeklyChart, categoryChart;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            renderTransactions();
+            updateSummary();
+            initCharts();
+            fetchWalletData();
+            
+            document.getElementById('transactionForm').addEventListener('submit', addTransaction);
+        });
+
+        async function fetchWalletData() {
+            try {
+                // Fetch SOL Balance
+                const balanceRes = await fetch(SOLANA_RPC, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        id: 1,
+                        method: 'getBalance',
+                        params: [WALLET_ADDRESS]
+                    })
+                });
+                const balanceData = await balanceRes.json();
+                const solBalance = balanceData.result?.value / 1e9 || 0;
+                
+                document.getElementById('solBalance').textContent = solBalance.toFixed(4) + ' SOL';
+                document.getElementById('solUsd').textContent = '$' + (solBalance * SOL_PRICE).toFixed(2);
+                
+                // Fetch Token Accounts
+                const tokensRes = await fetch(SOLANA_RPC, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        id: 1,
+                        method: 'getTokenAccounts',
+                        params: [WALLET_ADDRESS, { programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' }]
+                    })
+                });
+                
+                document.getElementById('tokenCount').textContent = '1+';
+                document.getElementById('totalUsd').textContent = '$' + (solBalance * SOL_PRICE).toFixed(2);
+                
+                // Fetch Recent Transactions
+                fetchWalletTransactions();
+                
+            } catch (error) {
+                console.error('Wallet fetch error:', error);
+                document.getElementById('solBalance').textContent = 'Error';
+                document.getElementById('solUsd').textContent = 'Check connection';
+            }
+        }
+
+        async function fetchWalletTransactions() {
+            try {
+                const txRes = await fetch(SOLANA_RPC, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        id: 1,
+                        method: 'getSignaturesForAddress',
+                        params: [WALLET_ADDRESS, { limit: 10 }]
+                    })
+                });
+                const txData = await txRes.json();
+                renderWalletTransactions(txData.result || []);
+            } catch (error) {
+                document.getElementById('walletTxList').innerHTML = '<div class="tx-item"><p>Could not load transactions</p></div>';
+            }
+        }
+
+        function renderWalletTransactions(transactions) {
+            const list = document.getElementById('walletTxList');
+            
+            if (!transactions || transactions.length === 0) {
+                list.innerHTML = '<div class="tx-item"><div class="tx-info"><div class="tx-icon receive">💰</div><div class="tx-details"><h4>No transactions yet</h4><p>Transfer SOL to this wallet to get started</p></div></div></div>';
+                return;
+            }
+            
+            list.innerHTML = transactions.map(tx => {
+                const isIncoming = tx.type === 'receive';
+                const time = new Date(tx.blockTime * 1000).toLocaleDateString('id-ID', { 
+                    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' 
+                });
+                return `
+                    <div class="tx-item">
+                        <div class="tx-info">
+                            <div class="tx-icon ${isIncoming ? 'receive' : 'send'}">${isIncoming ? '📥' : '📤'}</div>
+                            <div class="tx-details">
+                                <h4>${isIncoming ? 'Received' : 'Sent'} SOL</h4>
+                                <p>${time} • ${tx.signature.slice(0, 20)}...</p>
+                            </div>
+                        </div>
+                        <div class="tx-amount">
+                            <span class="${isIncoming ? 'positive' : 'negative'}">${isIncoming ? '+' : '-'}${tx.amount || '?'} SOL</span>
+                            <span class="label">${tx.status || 'Confirmed'}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function addTransaction(e) {
+            e.preventDefault();
+            
+            const type = document.getElementById('type').value;
+            const category = document.getElementById('category').value;
+            const amount = parseFloat(document.getElementById('amount').value);
+            const description = document.getElementById('description').value;
+            
+            const transaction = {
+                id: Date.now(),
+                type,
+                category,
+                amount,
+                description,
+                date: new Date().toLocaleDateString('id-ID')
+            };
+            
+            financeData.transactions.unshift(transaction);
+            localStorage.setItem('bozzxFinance', JSON.stringify(financeData));
+            renderTransactions();
+            updateSummary();
+            initCharts();
+            
+            e.target.reset();
+            alert('Transaction added!');
+        }
+
+        function renderTransactions() {
+            const list = document.getElementById('transactionList');
+            const icons = {
+                salary: '💼', freelance: '💻', investment: '📈', crypto: '🪙',
+                food: '🍔', transport: '🚗', shopping: '🛍️', bills: '📄', entertainment: '🎮', other: '📦'
+            };
+            
+            if (financeData.transactions.length === 0) {
+                list.innerHTML = '<div class="tx-item"><div class="tx-info"><div class="tx-icon receive">💰</div><div class="tx-details"><h4>No transactions yet</h4><p>Add your first transaction below</p></div></div></div>';
+                return;
+            }
+            
+            list.innerHTML = financeData.transactions.slice(0, 20).map(t => {
+                const icon = icons[t.category] || '📦';
+                const isIncome = t.type === 'income';
+                return `
+                    <div class="tx-item">
+                        <div class="tx-info">
+                            <div class="tx-icon ${isIncome ? 'receive' : 'send'}">${icon}</div>
+                            <div class="tx-details">
+                                <h4>${t.description}</h4>
+                                <p>${t.date} • ${t.category}</p>
+                            </div>
+                        </div>
+                        <div class="tx-amount">
+                            <span class="${isIncome ? 'positive' : 'negative'}">${isIncome ? '+' : '-'}$${t.amount.toFixed(2)}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateSummary() {
+            const income = financeData.transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+            const expenses = financeData.transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+            const balance = income - expenses;
+            const savingsRate = income > 0 ? ((income - expenses) / income * 100).toFixed(1) : 0;
+            
+            document.getElementById('totalBalance').textContent = '$' + balance.toFixed(2);
+            document.getElementById('totalBalance').className = 'amount ' + (balance >= 0 ? 'positive' : 'negative');
+            document.getElementById('totalIncome').textContent = '$' + income.toFixed(2);
+            document.getElementById('totalExpenses').textContent = '$' + expenses.toFixed(2);
+            document.getElementById('savingsRate').textContent = savingsRate + '%';
+        }
+
+        function initCharts() {
+            const ctx1 = document.getElementById('weeklyChart').getContext('2d');
+            const ctx2 = document.getElementById('categoryChart').getContext('2d');
+            
+            if (weeklyChart) weeklyChart.destroy();
+            if (categoryChart) categoryChart.destroy();
+            
+            const days = [];
+            const incomeData = [];
+            const expenseData = [];
+            
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                const dateStr = date.toLocaleDateString('id-ID', { weekday: 'short' });
+                days.push(dateStr);
+                
+                const dayTransactions = financeData.transactions.filter(t => {
+                    const tDate = new Date(t.date);
+                    return tDate.toDateString() === date.toDateString();
+                });
+                
+                incomeData.push(dayTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0));
+                expenseData.push(dayTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0));
+            }
+            
+            weeklyChart = new Chart(ctx1, {
+                type: 'bar',
+                data: {
+                    labels: days,
+                    datasets: [
+                        { label: 'Income', data: incomeData, backgroundColor: '#10b981' },
+                        { label: 'Expenses', data: expenseData, backgroundColor: '#ef4444' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#94a3b8' } },
+                        x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                    },
+                    plugins: { legend: { labels: { color: '#fff' } } }
+                }
+            });
+            
+            const expensesByCategory = {};
+            financeData.transactions.filter(t => t.type === 'expense').forEach(t => {
+                expensesByCategory[t.category] = (expensesByCategory[t.category] || 0) + t.amount;
+            });
+            
+            const categories = Object.keys(expensesByCategory);
+            const colors = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#14b8a6', '#f97316'];
+            
+            categoryChart = new Chart(ctx2, {
+                type: 'doughnut',
+                data: {
+                    labels: categories.map(c => c.charAt(0).toUpperCase() + c.slice(1)),
+                    datasets: [{
+                        data: categories.map(c => expensesByCategory[c]),
+                        backgroundColor: colors.slice(0, categories.length)
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { position: 'bottom', labels: { color: '#fff' } } }
+                }
+            });
+        }
+
+        document.querySelectorAll('a[href^="#"]').forEach(a => {
+            a.addEventListener('click', e => {
+                e.preventDefault();
+                document.querySelector(a.getAttribute('href')).scrollIntoView({ behavior: 'smooth' });
+            });
+        });
+    </script>
+</body>
+</html>
